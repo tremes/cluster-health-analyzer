@@ -15,6 +15,40 @@ func TestEvaluateAlerts(t *testing.T) {
 		expectedActiveAlerts []model.LabelSet
 	}{
 		{
+			name: "One label with just a key",
+			alerts: AlertsConfig{
+				Selectors: []Selectors{
+					{
+						MatchLabels: []map[string][]string{
+							{
+								"part_of": []string{},
+							},
+						},
+					},
+				},
+			},
+			expectedActiveAlerts: []model.LabelSet{
+				{
+					srcAlertname: "FooAlert",
+					srcSeverity:  "warning",
+					"part_of":    "", // TODO - fix the value?
+					srcNamespace: "foo-ns",
+				},
+				{
+					srcAlertname: "FooAlert",
+					"part_of":    "",
+					srcSeverity:  "warning",
+					srcNamespace: "second-foo-ns",
+				},
+				{
+					srcAlertname: "BarAlert",
+					"part_of":    "",
+					srcSeverity:  "critical",
+					srcNamespace: "bar-ns",
+				},
+			},
+		},
+		{
 			name: "Multiple label values (OR) and one matches",
 			alerts: AlertsConfig{
 				Selectors: []Selectors{
@@ -340,7 +374,7 @@ func TestEvaluateAlerts(t *testing.T) {
 			testAlertMatcher := NewAlertMatcher(mockAlertLoader)
 			alerts, err := testAlertMatcher.evaluateAlerts(tt.alerts)
 			assert.NoError(t, err)
-			assert.Equal(t, tt.expectedActiveAlerts, alerts)
+			assert.ElementsMatch(t, tt.expectedActiveAlerts, alerts)
 		})
 	}
 

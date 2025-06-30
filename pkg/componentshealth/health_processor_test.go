@@ -361,8 +361,17 @@ func (m MockAlertLoader) ActiveAlertsWithLabels(labels []string) ([]models.Alert
 		allMatch := true
 		for k, v := range labelsToMatch {
 			val, ok := a.Labels[k]
-			if !ok || val != v {
-				allMatch = false
+
+			switch v.operator {
+			case "=":
+				if !ok || val != v.value {
+					allMatch = false
+				}
+			case "!=":
+				if !ok {
+					allMatch = false
+				}
+
 			}
 		}
 		if allMatch {
@@ -372,11 +381,28 @@ func (m MockAlertLoader) ActiveAlertsWithLabels(labels []string) ([]models.Alert
 	return res, m.err
 }
 
-func labelSliceToMap(labels []string) map[string]string {
-	m := make(map[string]string, len(labels))
+type labelWithOperator struct {
+	key      string
+	operator string
+	value    string
+}
+
+func labelSliceToMap(labels []string) map[string]labelWithOperator {
+	m := make(map[string]labelWithOperator, len(labels))
 	for _, l := range labels {
-		pairAsSlice := strings.Split(l, "=")
-		m[pairAsSlice[0]] = pairAsSlice[1]
+		var pairAsSlice []string
+		var operator string
+		if strings.Contains(l, "!=") {
+			pairAsSlice = strings.Split(l, "!=")
+			operator = "!="
+		} else {
+			pairAsSlice = strings.Split(l, "=")
+			operator = "="
+		}
+		m[pairAsSlice[0]] = labelWithOperator{
+			operator: operator,
+			value:    pairAsSlice[1],
+		}
 	}
 	return m
 }

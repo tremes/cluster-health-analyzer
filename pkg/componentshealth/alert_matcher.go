@@ -76,6 +76,18 @@ func (a *alertMatcher) matchingAlertFound(matchLabels map[string][]string) ([]mo
 				}
 			}
 		} else {
+			if len(values) == 0 {
+				labelPair := fmt.Sprintf(`%s!=""`, key)
+				alerts, err := a.loader.ActiveAlertsWithLabels([]string{labelPair})
+				if err != nil {
+					return nil, nil, err
+				}
+				if len(alerts) > 0 {
+					numOfMatches++
+					labelsMatched[key] = ""
+				}
+				matchingAlerts = append(matchingAlerts, alerts...)
+			}
 			for _, v := range values {
 				labelPair := fmt.Sprintf("%s=%s", key, v)
 				alerts, err := a.loader.ActiveAlertsWithLabels([]string{labelPair})
