@@ -1,6 +1,7 @@
 package componentshealth
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -66,10 +67,10 @@ func TestEvaluateComponentsHealth(t *testing.T) {
 				},
 			}
 
-			testProcessor := NewHealthProcessor(0*time.Second, mockAlertLoader, nil)
+			testProcessor := createTestHealthProcessor(mockAlertLoader, newMockHealthChecker(OK))
 			testConf, err := loadConfig(tt.testComponentsFile)
 			assert.NoError(t, err)
-			componentsHealths := testProcessor.evaluateComponentsHealth(testConf.Components)
+			componentsHealths := testProcessor.evaluateComponentsHealth(t.Context(), testConf.Components)
 			assert.Equal(t, tt.expectedNameStatusPairs, componentHealthToNameStatusPairs(componentsHealths))
 		})
 	}
@@ -77,10 +78,81 @@ func TestEvaluateComponentsHealth(t *testing.T) {
 
 func TestEvaluateComponentHealth(t *testing.T) {
 	tests := []struct {
-		name                    string
-		component               *Component
+		name      string
+		component *Component
+		// help to mock health result from kube-health
+		mockKubeHealthChecker   HealthChecker
 		expectedComponentHealth *ComponentHealth
 	}{
+		{
+			name: "healthy component with healthy childs",
+			component: &Component{
+				Name:   "foo",
+				Alerts: AlertsConfig{},
+				ChildComponents: []Component{
+					{
+						Name: "bar",
+						Alerts: AlertsConfig{
+							Selectors: []Selectors{
+								{
+									MatchLabels: []map[string][]string{
+										{
+											"no_matching_label": []string{"bars"},
+										},
+									},
+								},
+							},
+						},
+					},
+					{
+						Name:   "baz",
+						Alerts: AlertsConfig{},
+						Objects: []K8sObject{
+							{
+								Group:     "test.group",
+								Resource:  "bazs",
+								Name:      "test-baz",
+								Namespace: "baz-namespace",
+							},
+							{
+								Group:    "another.group",
+								Resource: "corges",
+								Name:     "corge",
+							},
+						},
+					},
+				},
+			},
+			mockKubeHealthChecker: newMockHealthChecker(OK),
+			expectedComponentHealth: newComponentHealth("foo", OK).
+				AddChild(
+					&ComponentHealth{
+						name:         "bar",
+						healthStatus: OK,
+						alerts:       nil,
+					}).
+				AddChild(
+					&ComponentHealth{
+						name:         "baz",
+						healthStatus: OK,
+						objectStatuses: []ObjectStatus{
+							{
+								Name:         "test-baz",
+								Namespace:    "baz-namespace",
+								Resource:     "bazs",
+								HealthStatus: OK,
+								Progressing:  false,
+							},
+							{
+								Name:         "corge",
+								Resource:     "corges",
+								HealthStatus: OK,
+								Progressing:  false,
+							},
+						},
+					},
+				),
+		},
 		{
 			name: "component with one error child",
 			component: &Component{
@@ -107,6 +179,7 @@ func TestEvaluateComponentHealth(t *testing.T) {
 					},
 				},
 			},
+			mockKubeHealthChecker: newMockHealthChecker(OK),
 			expectedComponentHealth: newComponentHealth("foo", Error).
 				AddChild(
 					&ComponentHealth{
@@ -154,6 +227,7 @@ func TestEvaluateComponentHealth(t *testing.T) {
 					},
 				},
 			},
+			mockKubeHealthChecker: newMockHealthChecker(OK),
 			expectedComponentHealth: newComponentHealth("foo", Warning).
 				AddChild(
 					&ComponentHealth{
@@ -172,6 +246,66 @@ func TestEvaluateComponentHealth(t *testing.T) {
 					&ComponentHealth{
 						name:         "baz",
 						healthStatus: OK,
+					},
+				),
+		},
+		{
+			name: "component with one warning alert and one error object",
+			component: &Component{
+				Name:   "foo",
+				Alerts: AlertsConfig{},
+				ChildComponents: []Component{
+					{
+						Name: "bar",
+						Alerts: AlertsConfig{
+							Selectors: []Selectors{
+								{
+									MatchLabels: []map[string][]string{
+										{
+											"part_of": []string{"foos"},
+										},
+									},
+								},
+							},
+						},
+					},
+					{
+						Name:   "baz",
+						Alerts: AlertsConfig{},
+						Objects: []K8sObject{
+							{Group: "testgroup", Resource: "bazes", Name: "bazy", Namespace: "baz-namespace"},
+						},
+					},
+				},
+			},
+			mockKubeHealthChecker: newMockHealthChecker(Error),
+			expectedComponentHealth: newComponentHealth("foo", Error).
+				AddChild(
+					&ComponentHealth{
+						name:         "bar",
+						healthStatus: Warning,
+						alerts: []model.LabelSet{
+							{
+								srcSeverity:  "warning",
+								srcAlertname: "FooAlert",
+								srcNamespace: "",
+								"part_of":    "foos",
+							},
+						},
+					}).
+				AddChild(
+					&ComponentHealth{
+						name:         "baz",
+						healthStatus: Error,
+						objectStatuses: []ObjectStatus{
+							{
+								Name:         "bazy",
+								Namespace:    "baz-namespace",
+								Resource:     "bazes",
+								HealthStatus: Error,
+								Progressing:  false,
+							},
+						},
 					},
 				),
 		},
@@ -197,9 +331,8 @@ func TestEvaluateComponentHealth(t *testing.T) {
 					},
 				},
 			}
-
-			testProcessor := NewHealthProcessor(0*time.Second, mockAlertLoader, nil)
-			componentsHealth, err := testProcessor.evaluateComponent(tt.component)
+			testProcessor := createTestHealthProcessor(mockAlertLoader, tt.mockKubeHealthChecker)
+			componentsHealth, err := testProcessor.evaluateComponent(t.Context(), tt.component)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedComponentHealth, componentsHealth)
 		})
@@ -208,9 +341,11 @@ func TestEvaluateComponentHealth(t *testing.T) {
 
 func TestComponentHealthsToMetrics(t *testing.T) {
 	tests := []struct {
-		name             string
-		componentsHealth []*ComponentHealth
-		expectedMetrics  []prom.Metric
+		name                     string
+		componentsHealth         []*ComponentHealth
+		expectedAlertMetrics     []prom.Metric
+		expectedObjectMetrics    []prom.Metric
+		expectedComponentMetrics []prom.Metric
 	}{
 		{
 			name: "healthy component doesn't create a new metric",
@@ -220,7 +355,7 @@ func TestComponentHealthsToMetrics(t *testing.T) {
 					healthStatus: OK,
 				},
 			},
-			expectedMetrics: nil,
+			expectedAlertMetrics: nil,
 		},
 		{
 			name: "one component with 2 alerts firing creates 2 metrics",
@@ -240,7 +375,7 @@ func TestComponentHealthsToMetrics(t *testing.T) {
 					},
 				},
 			},
-			expectedMetrics: []prom.Metric{
+			expectedAlertMetrics: []prom.Metric{
 				{
 					Labels: model.LabelSet{
 						"component":  "bar",
@@ -264,7 +399,7 @@ func TestComponentHealthsToMetrics(t *testing.T) {
 		{
 			name: "component with parent and childs",
 			componentsHealth: []*ComponentHealth{
-				newComponentHealth("testParent", OK).
+				newComponentHealth("testParent", Error).
 					AddChild(
 						newComponentHealth("foo", Error).
 							AddChild(&ComponentHealth{
@@ -288,9 +423,22 @@ func TestComponentHealthsToMetrics(t *testing.T) {
 									name:         "baz",
 									healthStatus: OK,
 								},
-							)),
+							).
+							AddChild(&ComponentHealth{
+								name:         "qux",
+								healthStatus: Warning,
+								objectStatuses: []ObjectStatus{
+									{
+										Name:         "test-qux",
+										Namespace:    "test-namespace",
+										HealthStatus: Warning,
+										Resource:     "quxes",
+										Progressing:  true,
+									},
+								},
+							})),
 			},
-			expectedMetrics: []prom.Metric{
+			expectedAlertMetrics: []prom.Metric{
 				{
 					Labels: model.LabelSet{
 						"component":  "testParent.foo.bar",
@@ -300,6 +448,8 @@ func TestComponentHealthsToMetrics(t *testing.T) {
 					},
 					Value: 2,
 				},
+			},
+			expectedComponentMetrics: []prom.Metric{
 				{
 					Labels: model.LabelSet{
 						"component": "testParent.foo",
@@ -307,15 +457,46 @@ func TestComponentHealthsToMetrics(t *testing.T) {
 					},
 					Value: 2,
 				},
+				{
+					Labels: model.LabelSet{
+						"component": "testParent",
+						"status":    "error",
+					},
+					Value: 2,
+				},
+			},
+			expectedObjectMetrics: []prom.Metric{
+				{
+					Labels: model.LabelSet{
+						"component":   "testParent.foo.qux",
+						"name":        "test-qux",
+						"namespace":   "test-namespace",
+						"progressing": "true",
+						"resource":    "quxes",
+						"result":      "warning",
+					},
+					Value: 1,
+				},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metrics := createHealthMetrics(tt.componentsHealth)
-			assert.ElementsMatch(t, tt.expectedMetrics, metrics)
+			alertMetrics, objectMetrics, componentMetrics := createHealthMetrics(tt.componentsHealth)
+			assert.ElementsMatch(t, tt.expectedAlertMetrics, alertMetrics)
+			assert.ElementsMatch(t, tt.expectedComponentMetrics, componentMetrics)
+			assert.ElementsMatch(t, tt.expectedObjectMetrics, objectMetrics)
 		})
+	}
+}
+
+func createTestHealthProcessor(al AlertLoader, healthChecker HealthChecker) healthProcessor {
+	alertMatcher := NewAlertMatcher(al)
+	return healthProcessor{
+		khChecker:    healthChecker,
+		alertMatcher: alertMatcher,
+		interval:     0 * time.Second,
 	}
 }
 
@@ -382,7 +563,6 @@ func (m MockAlertLoader) ActiveAlertsWithLabels(labels []string) ([]models.Alert
 }
 
 type labelWithOperator struct {
-	key      string
 	operator string
 	value    string
 }
@@ -405,4 +585,29 @@ func labelSliceToMap(labels []string) map[string]labelWithOperator {
 		}
 	}
 	return m
+}
+
+func newMockHealthChecker(status HealthStatus) HealthChecker {
+	return &mockKubeHealthChecker{status: status}
+}
+
+type mockKubeHealthChecker struct {
+	status HealthStatus
+}
+
+// EvaluateObjects creates ObjectStatus for each K8s Object.
+// All the objects are created with the HealthStatus set in the mockKubeHealthChecker.
+func (m *mockKubeHealthChecker) EvaluateObjects(ctx context.Context, objects []K8sObject) ([]ObjectStatus, error) {
+	var objectStatuses []ObjectStatus
+	for _, o := range objects {
+		objectStatus := ObjectStatus{
+			Name:         o.Name,
+			Namespace:    o.Namespace,
+			Resource:     o.Resource,
+			HealthStatus: m.status,
+		}
+		objectStatuses = append(objectStatuses, objectStatus)
+	}
+
+	return objectStatuses, nil
 }

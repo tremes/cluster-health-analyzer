@@ -7,39 +7,51 @@ data:
   components.yaml: |
     components:
     - name: control-plane
-      objects:
-      - group: test-1
-        resource: resource
-      - group: test-2
       children:
-      - name: cpu
+      - name: nodes
+        objects:
+        - resource: nodes
+          selectors:
+          - matchLabels:
+              node-role.kubernetes.io/control-plane: []
         alerts:
           selectors:
           - matchLabels:
             - alertname: 
               - "KubeCPUOvercommit"
               - "HighOverallControlPlaneCPU"
-      - name: B
-        objects:
-        - resource: nodes
-      - name: etcd
-        alerts:
-          selectors:
-          - matchLabels:
-            - namespace:
-              - openshift-etcd
-              - openshift-etcd-operator
+      - name: capacity
+        children:
+        - name: cpu
+          alerts:
+            selectors:
+            - matchLabels:
+              - alertname: ["KubeCPUOvercommit","HighOverallControlPlaneCPU"]
+        - name: memory
+          alerts:
+            selectors:
+            - matchLabels:
+              - alertname: ["HighOverallControlPlaneMemory"]
+      - name: operators
+        children:
+        - name: etcd
+          alerts:
+            selectors:
+            - matchLabels:
+              - namespace: ["openshift-etcd","openshift-etcd-operator"]
+          objects:
+          - group: config.openshift.io
+            resource: clusteroperators
+            name: etcd
     - name: addons
       children:
       - name: kubevirt
         alerts:
           selectors:
           - matchLabels:
-            - kubernetes_operator_part_of: 
-              - kubevirt
+            - kubernetes_operator_part_of: ["kubevirt"]
           - matchLabels:
-            - namespace: 
-              - openshift-cnv
+            - namespace: ["openshift-cnv"]
         objects:
         - group: kubevirt.io
           resource: kubevirts

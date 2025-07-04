@@ -40,6 +40,15 @@ var (
 		"component_health_alert",
 		"Health status of a component based on alerts",
 	)
+
+	componentHealthObjects = prom.NewMetricSet(
+		"component_health_object",
+		"Health status of a component based on Kubernetes objects",
+	)
+	componentsHealth = prom.NewMetricSet(
+		"component_health",
+		"Health status of a component based on the child objects",
+	)
 )
 
 // Server is the interface for serving the metrics.
@@ -61,12 +70,12 @@ func StartServer(interval time.Duration, prometheusURL string, server Server) {
 		slog.Error("Failed to create processor, terminating", "err", err)
 		return
 	}
-	alertLoader, err := componentshealth.NewAlertLoader()
+
+	componentsProc, err := componentshealth.NewHealthProcessor(interval, componentHealthAlerts, componentHealthObjects, componentsHealth)
 	if err != nil {
-		slog.Info("Failed to init alertmanager client ", "error", err)
+		slog.Info("Failed to create component procesor, terminating", "err", err)
 		return
 	}
-	componentsProc := componentshealth.NewHealthProcessor(interval, alertLoader, componentHealthAlerts)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	componentsProc.Start(ctx)
@@ -87,6 +96,8 @@ func StartServer(interval time.Duration, prometheusURL string, server Server) {
 	reg.MustRegister(componentsMetrics)
 	reg.MustRegister(groupSeverityCountMetrics)
 	reg.MustRegister(componentHealthAlerts)
+	reg.MustRegister(componentHealthObjects)
+	reg.MustRegister(componentsHealth)
 
 	slog.Info("Serving metrics")
 

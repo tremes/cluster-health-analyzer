@@ -1,7 +1,7 @@
 package componentshealth
 
 import (
-	"github.com/openshift/cluster-health-analyzer/pkg/processor"
+	"github.com/inecas/kube-health/pkg/status"
 	"github.com/prometheus/common/model"
 )
 
@@ -17,8 +17,10 @@ type Component struct {
 }
 
 type K8sObject struct {
-	Group    string `yaml:"group"`
-	Resource string `yaml:"resource"`
+	Group     string `yaml:"group"`
+	Resource  string `yaml:"resource"`
+	Name      string `yaml:"name"`
+	Namespace string `yaml:"namespace"`
 }
 
 type AlertsConfig struct {
@@ -29,7 +31,7 @@ type Selectors struct {
 	MatchLabels []map[string][]string `yaml:"matchLabels"`
 }
 
-type HealthStatus string
+type HealthStatus int
 
 func (h HealthStatus) IsOK() bool {
 	return h == OK
@@ -43,23 +45,38 @@ func (h HealthStatus) IsWarning() bool {
 	return h == Warning
 }
 
-func ParseHealthValue(h processor.HealthValue) HealthStatus {
+func (h HealthStatus) String() string {
 	switch h {
 	case 0:
-		return OK
+		return "OK"
 	case 1:
-		return Warning
+		return "warning"
 	case 2:
-		return Error
+		return "error"
 	default:
-		// We don't recognize the health value, so we'll default to warning
-		return Warning
+		return "unknown"
 	}
 }
 
-var OK HealthStatus = "ok"
-var Warning HealthStatus = "warning"
-var Error HealthStatus = "error"
+func ParseKubeHealthStatus(s status.Result) HealthStatus {
+	switch s {
+	case 0:
+		return Unknown
+	case 1:
+		return OK
+	case 2:
+		return Warning
+	case 3:
+		return Error
+	default:
+		return Unknown
+	}
+}
+
+var OK HealthStatus = 0
+var Warning HealthStatus = 1
+var Error HealthStatus = 2
+var Unknown HealthStatus = -1
 
 type ComponentHealth struct {
 	name            string
@@ -67,10 +84,23 @@ type ComponentHealth struct {
 	childComponents []*ComponentHealth
 	alerts          []model.LabelSet
 	healthStatus    HealthStatus
+	objectStatuses  []ObjectStatus
 }
 
 func (c *ComponentHealth) AddChild(ch *ComponentHealth) *ComponentHealth {
 	ch.parent = c
 	c.childComponents = append(c.childComponents, ch)
 	return c
+}
+
+func (c *ComponentHealth) HasChilds() bool {
+	return len(c.childComponents) > 0
+}
+
+type ObjectStatus struct {
+	Name         string
+	Namespace    string
+	Resource     string
+	HealthStatus HealthStatus
+	Progressing  bool
 }

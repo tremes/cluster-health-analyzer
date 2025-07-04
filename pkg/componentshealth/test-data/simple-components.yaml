@@ -1,9 +1,5 @@
 components:
 - name: control-plane
-  objects:
-  - group: test-1
-    resource: resource
-  - group: test-2
   children:
   - name: nodes
     alerts:
