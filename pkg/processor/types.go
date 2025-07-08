@@ -151,7 +151,7 @@ func evalMatcherFns(fns []componentMatcherFn, labels model.LabelSet) (
 
 // getLabelsSubset returns a subset of the labels with given keys.
 func getLabelsSubset(m model.LabelSet, keys ...model.LabelName) model.LabelSet {
-	keys = append([]model.LabelName{"namespace", "alertname", "severity"}, keys...)
+	keys = append([]model.LabelName{"namespace", "alertname", "severity", "uid"}, keys...)
 	return getMapSubset(m, keys...)
 }
 
