@@ -6,14 +6,14 @@ require (
 	github.com/go-openapi/runtime v0.28.0
 	github.com/go-openapi/strfmt v0.23.0
 	github.com/google/uuid v1.6.0
-	github.com/inecas/kube-health v0.3.2-0.20250707122049-477fb872c8f0
+	github.com/inecas/kube-health v0.3.2-0.20250710120905-38ca01bb68de
 	github.com/mark3labs/mcp-go v0.32.0
 	github.com/openshift/api v0.0.0-20240830142653-85dc560939ef
 	github.com/openshift/library-go v0.0.0-20240830130947-d9523164b328
 	github.com/prometheus/alertmanager v0.28.1
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/common v0.62.0
-	github.com/spf13/cobra v1.9.1
+	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.10.0
 	gopkg.in/yaml.v2 v2.4.0
