@@ -9,26 +9,32 @@ type ComponentsConfig struct {
 	Components []Component `yaml:"components"`
 }
 
+// Component is a type representing component
+// as defined in the "external" YAML config
 type Component struct {
-	Name            string       `yaml:"name"`
-	Objects         []K8sObject  `yaml:"objects"`
-	ChildComponents []Component  `yaml:"children"`
-	Alerts          AlertsConfig `yaml:"alerts"`
+	Name            string          `yaml:"name"`
+	Objects         []K8sObject     `yaml:"objects"`
+	ChildComponents []Component     `yaml:"children"`
+	AlertsSelectors AlertsSelectors `yaml:"alerts"`
 }
 
+// K8sObject is a type representing
+// Kubernetes object/resource as defined in the
+// "external" YAML config
 type K8sObject struct {
-	Group     string `yaml:"group"`
-	Resource  string `yaml:"resource"`
-	Name      string `yaml:"name"`
-	Namespace string `yaml:"namespace"`
+	Group            string     `yaml:"group"`
+	Resource         string     `yaml:"resource"`
+	Name             string     `yaml:"name"`
+	Namespace        string     `yaml:"namespace"`
+	ObjectsSelectors []Selector `yaml:"selectors"`
 }
 
-type AlertsConfig struct {
-	Selectors []Selectors `yaml:"selectors"`
+type AlertsSelectors struct {
+	Selectors []Selector `yaml:"selectors"`
 }
 
-type Selectors struct {
-	MatchLabels []map[string][]string `yaml:"matchLabels"`
+type Selector struct {
+	MatchLabels map[string][]string `yaml:"matchLabels"`
 }
 
 type HealthStatus int

@@ -5,18 +5,18 @@ components:
     alerts:
       selectors:
       - matchLabels:
-        - alertname: ["HighOverallControlPlaneCPU"]
-        - test_label: ["foo"]
+          alertname: ["HighOverallControlPlaneCPU"]
+          test_label: ["foo"]
   - name: capacity
     children:
     - name: cpu
       alerts:
         selectors:
         - matchLabels:
-          - alertname: ["KubeCPUOvercommit","HighOverallControlPlaneCPU"]
+            alertname: ["KubeCPUOvercommit","HighOverallControlPlaneCPU"]
     - name: memory
       alerts:
         selectors:
         - matchLabels:
-          - alertname: ["HighOverallControlPlaneMemory"]
+            alertname: ["HighOverallControlPlaneMemory"]
   

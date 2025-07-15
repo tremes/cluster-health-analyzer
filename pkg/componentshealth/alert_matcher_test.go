@@ -1,6 +1,7 @@
 package componentshealth
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/prometheus/alertmanager/api/v2/models"
@@ -11,18 +12,16 @@ import (
 func TestEvaluateAlerts(t *testing.T) {
 	tests := []struct {
 		name                 string
-		alerts               AlertsConfig
+		alerts               AlertsSelectors
 		expectedActiveAlerts []model.LabelSet
 	}{
 		{
 			name: "One label with just a key",
-			alerts: AlertsConfig{
-				Selectors: []Selectors{
+			alerts: AlertsSelectors{
+				Selectors: []Selector{
 					{
-						MatchLabels: []map[string][]string{
-							{
-								"part_of": []string{},
-							},
+						MatchLabels: map[string][]string{
+							"part_of": []string{},
 						},
 					},
 				},
@@ -50,13 +49,11 @@ func TestEvaluateAlerts(t *testing.T) {
 		},
 		{
 			name: "Multiple label values (OR) and one matches",
-			alerts: AlertsConfig{
-				Selectors: []Selectors{
+			alerts: AlertsSelectors{
+				Selectors: []Selector{
 					{
-						MatchLabels: []map[string][]string{
-							{
-								"alertname": []string{"FooAlert", "BazAlert"},
-							},
+						MatchLabels: map[string][]string{
+							"alertname": []string{"FooAlert", "BazAlert"},
 						},
 					},
 				},
@@ -76,13 +73,11 @@ func TestEvaluateAlerts(t *testing.T) {
 		},
 		{
 			name: "Multiple label values (OR) and none matches",
-			alerts: AlertsConfig{
-				Selectors: []Selectors{
+			alerts: AlertsSelectors{
+				Selectors: []Selector{
 					{
-						MatchLabels: []map[string][]string{
-							{
-								"alertname": []string{"BazAlert", "QuxAlert"},
-							},
+						MatchLabels: map[string][]string{
+							"alertname": []string{"BazAlert", "QuxAlert"},
 						},
 					},
 				},
@@ -91,13 +86,11 @@ func TestEvaluateAlerts(t *testing.T) {
 		},
 		{
 			name: "Multiple label values (OR) and all matches",
-			alerts: AlertsConfig{
-				Selectors: []Selectors{
+			alerts: AlertsSelectors{
+				Selectors: []Selector{
 					{
-						MatchLabels: []map[string][]string{
-							{
-								"alertname": []string{"FooAlert", "BarAlert"},
-							},
+						MatchLabels: map[string][]string{
+							"alertname": []string{"FooAlert", "BarAlert"},
 						},
 					},
 				},
@@ -122,15 +115,13 @@ func TestEvaluateAlerts(t *testing.T) {
 		},
 		{
 			name: "Multiple labels (AND) but only one matches",
-			alerts: AlertsConfig{
-				Selectors: []Selectors{
+			alerts: AlertsSelectors{
+				Selectors: []Selector{
 					{
-						MatchLabels: []map[string][]string{
-							{
-								"part_of":     []string{"testing"},
-								"alertname":   []string{"FooAlert"},
-								"nonexisting": []string{"value"},
-							},
+						MatchLabels: map[string][]string{
+							"part_of":     []string{"testing"},
+							"alertname":   []string{"FooAlert"},
+							"nonexisting": []string{"value"},
 						},
 					},
 				},
@@ -139,14 +130,12 @@ func TestEvaluateAlerts(t *testing.T) {
 		},
 		{
 			name: "Multiple labels (AND) and all matches",
-			alerts: AlertsConfig{
-				Selectors: []Selectors{
+			alerts: AlertsSelectors{
+				Selectors: []Selector{
 					{
-						MatchLabels: []map[string][]string{
-							{
-								"alertname": []string{"FooAlert"},
-								"part_of":   []string{"foos"},
-							},
+						MatchLabels: map[string][]string{
+							"alertname": []string{"FooAlert"},
+							"part_of":   []string{"foos"},
 						},
 					},
 				},
@@ -168,14 +157,12 @@ func TestEvaluateAlerts(t *testing.T) {
 		},
 		{
 			name: "Multiple labels (AND), multiple values but only one matches",
-			alerts: AlertsConfig{
-				Selectors: []Selectors{
+			alerts: AlertsSelectors{
+				Selectors: []Selector{
 					{
-						MatchLabels: []map[string][]string{
-							{
-								"alertname": []string{"Alert", "Blah"},
-								"part_of":   []string{"foos"},
-							},
+						MatchLabels: map[string][]string{
+							"alertname": []string{"Alert", "Blah"},
+							"part_of":   []string{"foos"},
 						},
 					},
 				},
@@ -184,14 +171,12 @@ func TestEvaluateAlerts(t *testing.T) {
 		},
 		{
 			name: "Multiple labels, multiple values and all matches",
-			alerts: AlertsConfig{
-				Selectors: []Selectors{
+			alerts: AlertsSelectors{
+				Selectors: []Selector{
 					{
-						MatchLabels: []map[string][]string{
-							{
-								"alertname": []string{"Alert", "FooAlert"},
-								"part_of":   []string{"foos"},
-							},
+						MatchLabels: map[string][]string{
+							"alertname": []string{"Alert", "FooAlert"},
+							"part_of":   []string{"foos"},
 						},
 					},
 				},
@@ -213,15 +198,13 @@ func TestEvaluateAlerts(t *testing.T) {
 		},
 		{
 			name: "Multiple labels (AND) and all matches one alert",
-			alerts: AlertsConfig{
-				Selectors: []Selectors{
+			alerts: AlertsSelectors{
+				Selectors: []Selector{
 					{
-						MatchLabels: []map[string][]string{
-							{
-								"namespace": []string{"foo-ns"},
-								"part_of":   []string{"bars", "shits", "foos"},
-								"alertname": []string{"FooAlert"},
-							},
+						MatchLabels: map[string][]string{
+							"namespace": {"foo-ns"},
+							"part_of":   {"bars", "shits", "foos"},
+							"alertname": {"FooAlert"},
 						},
 					},
 				},
@@ -237,22 +220,18 @@ func TestEvaluateAlerts(t *testing.T) {
 		},
 		{
 			name: "Multiple matchlabels attributes and none matches",
-			alerts: AlertsConfig{
-				Selectors: []Selectors{
+			alerts: AlertsSelectors{
+				Selectors: []Selector{
 					{
-						MatchLabels: []map[string][]string{
-							{
-								"alertname": []string{"FooAlert"},
-								"part_of":   []string{"testing"},
-							},
+						MatchLabels: map[string][]string{
+							"alertname": []string{"FooAlert"},
+							"part_of":   []string{"testing"},
 						},
 					},
 					{
-						MatchLabels: []map[string][]string{
-							{
-								"alertname": []string{"BarAlert"},
-								"part_of":   []string{"testing"},
-							},
+						MatchLabels: map[string][]string{
+							"alertname": []string{"BarAlert"},
+							"part_of":   []string{"testing"},
 						},
 					},
 				},
@@ -261,22 +240,18 @@ func TestEvaluateAlerts(t *testing.T) {
 		},
 		{
 			name: "Multiple matchlabels attributes and one matches",
-			alerts: AlertsConfig{
-				Selectors: []Selectors{
+			alerts: AlertsSelectors{
+				Selectors: []Selector{
 					{
-						MatchLabels: []map[string][]string{
-							{
-								"alertname": []string{"FooAlert"},
-								"part_of":   []string{"foos"},
-							},
+						MatchLabels: map[string][]string{
+							"alertname": []string{"FooAlert"},
+							"part_of":   []string{"foos"},
 						},
 					},
 					{
-						MatchLabels: []map[string][]string{
-							{
-								"alertname": []string{"BarAlert"},
-								"part_of":   []string{"testing"},
-							},
+						MatchLabels: map[string][]string{
+							"alertname": []string{"BarAlert"},
+							"part_of":   []string{"testing"},
 						},
 					},
 				},
@@ -298,22 +273,18 @@ func TestEvaluateAlerts(t *testing.T) {
 		},
 		{
 			name: "Multiple matchlabels attributes and all matches",
-			alerts: AlertsConfig{
-				Selectors: []Selectors{
+			alerts: AlertsSelectors{
+				Selectors: []Selector{
 					{
-						MatchLabels: []map[string][]string{
-							{
-								"alertname": []string{"FooAlert"},
-								"part_of":   []string{"foos"},
-							},
+						MatchLabels: map[string][]string{
+							"alertname": []string{"FooAlert"},
+							"part_of":   []string{"foos"},
 						},
 					},
 					{
-						MatchLabels: []map[string][]string{
-							{
-								"alertname": []string{"BarAlert"},
-								"part_of":   []string{"bars"},
-							},
+						MatchLabels: map[string][]string{
+							"alertname": []string{"BarAlert"},
+							"part_of":   []string{"bars"},
 						},
 					},
 				},
@@ -374,6 +345,8 @@ func TestEvaluateAlerts(t *testing.T) {
 			testAlertMatcher := NewAlertMatcher(mockAlertLoader)
 			alerts, err := testAlertMatcher.evaluateAlerts(tt.alerts)
 			assert.NoError(t, err)
+			fmt.Println("======================== GOT ", alerts)
+			fmt.Println("======================== EXPECTED ", tt.expectedActiveAlerts)
 			assert.ElementsMatch(t, tt.expectedActiveAlerts, alerts)
 		})
 	}

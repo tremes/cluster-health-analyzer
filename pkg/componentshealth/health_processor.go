@@ -124,7 +124,7 @@ func (p *healthProcessor) evaluateComponent(ctx context.Context, c *Component) (
 	if err != nil {
 		return nil, err
 	}
-	alerts, err := p.alertMatcher.evaluateAlerts(c.Alerts)
+	alerts, err := p.alertMatcher.evaluateAlerts(c.AlertsSelectors)
 	if err != nil {
 		return nil, err
 	}

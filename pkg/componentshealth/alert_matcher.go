@@ -28,21 +28,21 @@ func NewAlertMatcher(alertLoader AlertLoader) alertMatcher {
 
 // The evaluateAlerts evaluates the health of the 'alerts' attribute of the component.
 // It returns slice of matching alerts
-func (p *alertMatcher) evaluateAlerts(alerts AlertsConfig) ([]model.LabelSet, error) {
+func (p *alertMatcher) evaluateAlerts(alerts AlertsSelectors) ([]model.LabelSet, error) {
 	var allMatchingAlerts []model.LabelSet
 	for _, s := range alerts.Selectors {
-		for _, matchLabels := range s.MatchLabels {
-			alerts, matchedLabels, err := p.matchingAlertFound(matchLabels)
-			if err != nil {
-				return nil, err
-			}
-			// number of matches can be higher, because one label can have more values
-			// that are matching
-			if len(alerts) >= len(s.MatchLabels) {
-				cleanedAlerts := cleanupLabels(alerts, matchedLabels)
-				allMatchingAlerts = append(allMatchingAlerts, cleanedAlerts...)
-			}
+		// for _, matchLabels := range s.MatchLabels {
+		alerts, matchedLabels, err := p.matchingAlertFound(s.MatchLabels)
+		if err != nil {
+			return nil, err
 		}
+		// number of matches can be higher, because one label can have more values
+		// that are matching
+		// if len(alerts) >= len(s.MatchLabels) {
+		cleanedAlerts := cleanupLabels(alerts, matchedLabels)
+		allMatchingAlerts = append(allMatchingAlerts, cleanedAlerts...)
+		// }
+		// }
 	}
 	return allMatchingAlerts, nil
 }
@@ -102,7 +102,7 @@ func (a *alertMatcher) matchingAlertFound(matchLabels map[string][]string) ([]mo
 			}
 		}
 	}
-	// number of matches must be equal or higher than number of labels/key-value pairs
+	// number of matches must be less than number of labels/key-value pairs
 	// to match
 	if numOfMatches < len(matchLabels) {
 		return nil, nil, nil

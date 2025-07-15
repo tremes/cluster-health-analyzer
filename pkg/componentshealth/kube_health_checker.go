@@ -2,6 +2,7 @@ package componentshealth
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/inecas/kube-health/pkg/eval"
 	"github.com/inecas/kube-health/pkg/khealth"
@@ -37,6 +38,11 @@ func (k *kubeHealthChecker) EvaluateObjects(ctx context.Context, objects []K8sOb
 	var statuses []ObjectStatus
 	for _, o := range objects {
 		gr := schema.GroupResource{Group: o.Group, Resource: o.Resource}
+
+		if len(o.ObjectsSelectors) > 0 {
+
+		}
+
 		objStatuses, err := k.evaluator.EvalResource(ctx, gr, o.Namespace, o.Name)
 		if err != nil {
 			return nil, err
@@ -53,4 +59,24 @@ func (k *kubeHealthChecker) EvaluateObjects(ctx context.Context, objects []K8sOb
 		}
 	}
 	return statuses, nil
+}
+
+func translateSelectorsToExpression(selectors []Selector) string {
+	for _, s := range selectors {
+		fmt.Println("=============== SELECTOR IS ", s)
+		var expression string
+		for lName, lValues := range s.MatchLabels {
+			fmt.Println("=============== MATCH LABELS ARE ", s)
+			// for lName, lValues := range matchLabels {
+			switch {
+			case len(lValues) == 0:
+				if len(expression) == 0 {
+					expression = lName
+				}
+			case len(lValues) == 1:
+			case len(lValues) > 1:
+			}
+		}
+	}
+	return ""
 }

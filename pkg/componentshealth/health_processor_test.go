@@ -87,26 +87,24 @@ func TestEvaluateComponentHealth(t *testing.T) {
 		{
 			name: "healthy component with healthy childs",
 			component: &Component{
-				Name:   "foo",
-				Alerts: AlertsConfig{},
+				Name:            "foo",
+				AlertsSelectors: AlertsSelectors{},
 				ChildComponents: []Component{
 					{
 						Name: "bar",
-						Alerts: AlertsConfig{
-							Selectors: []Selectors{
+						AlertsSelectors: AlertsSelectors{
+							Selectors: []Selector{
 								{
-									MatchLabels: []map[string][]string{
-										{
-											"no_matching_label": []string{"bars"},
-										},
+									MatchLabels: map[string][]string{
+										"no_matching_label": []string{"bars"},
 									},
 								},
 							},
 						},
 					},
 					{
-						Name:   "baz",
-						Alerts: AlertsConfig{},
+						Name:            "baz",
+						AlertsSelectors: AlertsSelectors{},
 						Objects: []K8sObject{
 							{
 								Group:     "test.group",
@@ -156,26 +154,24 @@ func TestEvaluateComponentHealth(t *testing.T) {
 		{
 			name: "component with one error child",
 			component: &Component{
-				Name:   "foo",
-				Alerts: AlertsConfig{},
+				Name:            "foo",
+				AlertsSelectors: AlertsSelectors{},
 				ChildComponents: []Component{
 					{
 						Name: "bar",
-						Alerts: AlertsConfig{
-							Selectors: []Selectors{
+						AlertsSelectors: AlertsSelectors{
+							Selectors: []Selector{
 								{
-									MatchLabels: []map[string][]string{
-										{
-											"part_of": []string{"bars"},
-										},
+									MatchLabels: map[string][]string{
+										"part_of": []string{"bars"},
 									},
 								},
 							},
 						},
 					},
 					{
-						Name:   "baz",
-						Alerts: AlertsConfig{},
+						Name:            "baz",
+						AlertsSelectors: AlertsSelectors{},
 					},
 				},
 			},
@@ -204,26 +200,24 @@ func TestEvaluateComponentHealth(t *testing.T) {
 		{
 			name: "component with one warn child",
 			component: &Component{
-				Name:   "foo",
-				Alerts: AlertsConfig{},
+				Name:            "foo",
+				AlertsSelectors: AlertsSelectors{},
 				ChildComponents: []Component{
 					{
 						Name: "bar",
-						Alerts: AlertsConfig{
-							Selectors: []Selectors{
+						AlertsSelectors: AlertsSelectors{
+							Selectors: []Selector{
 								{
-									MatchLabels: []map[string][]string{
-										{
-											"part_of": []string{"foos"},
-										},
+									MatchLabels: map[string][]string{
+										"part_of": []string{"foos"},
 									},
 								},
 							},
 						},
 					},
 					{
-						Name:   "baz",
-						Alerts: AlertsConfig{},
+						Name:            "baz",
+						AlertsSelectors: AlertsSelectors{},
 					},
 				},
 			},
@@ -252,26 +246,24 @@ func TestEvaluateComponentHealth(t *testing.T) {
 		{
 			name: "component with one warning alert and one error object",
 			component: &Component{
-				Name:   "foo",
-				Alerts: AlertsConfig{},
+				Name:            "foo",
+				AlertsSelectors: AlertsSelectors{},
 				ChildComponents: []Component{
 					{
 						Name: "bar",
-						Alerts: AlertsConfig{
-							Selectors: []Selectors{
+						AlertsSelectors: AlertsSelectors{
+							Selectors: []Selector{
 								{
-									MatchLabels: []map[string][]string{
-										{
-											"part_of": []string{"foos"},
-										},
+									MatchLabels: map[string][]string{
+										"part_of": []string{"foos"},
 									},
 								},
 							},
 						},
 					},
 					{
-						Name:   "baz",
-						Alerts: AlertsConfig{},
+						Name:            "baz",
+						AlertsSelectors: AlertsSelectors{},
 						Objects: []K8sObject{
 							{Group: "testgroup", Resource: "bazes", Name: "bazy", Namespace: "baz-namespace"},
 						},
