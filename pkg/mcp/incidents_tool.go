@@ -60,6 +60,10 @@ func NewIncidentsTool() IncidentTool {
 		},
 		consoleURL,
 	}
+	return IncidentsTool{
+		mcpTool,
+		readTestData,
+	}
 }
 
 // IncidentsHandler is the main handler for the Incidents. It connects to the
@@ -70,6 +74,14 @@ func (i *IncidentTool) IncidentsHandler(ctx context.Context, request mcp.CallToo
 	if err != nil {
 		slog.Error(err.Error())
 		return nil, err
+	}
+	if i.readOnlyTestData {
+		slog.Info("Reading testing data", "enabled", i.readOnlyTestData)
+		data, err := os.ReadFile("/etc/test/incidents.yaml")
+		if err != nil {
+			return nil, err
+		}
+		return mcp.NewToolResultText(string(data)), nil
 	}
 
 	promURL := os.Getenv("PROM_URL")

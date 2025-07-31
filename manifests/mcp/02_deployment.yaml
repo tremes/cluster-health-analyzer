@@ -38,3 +38,11 @@ spec:
         - containerPort: 8085
           name: mcp
         terminationMessagePolicy: FallbackToLogsOnError
+        volumeMounts:
+        - mountPath: /etc/test/
+          name: test-data
+          readOnly: true
+      volumes:
+      - name: test-data
+        configMap:
+          name: test-data
