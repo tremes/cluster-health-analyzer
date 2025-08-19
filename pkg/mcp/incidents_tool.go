@@ -9,6 +9,7 @@ import (
 	"os"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -75,13 +76,16 @@ func (i *IncidentTool) IncidentsHandler(ctx context.Context, request mcp.CallToo
 		slog.Error(err.Error())
 		return nil, err
 	}
+	var sb strings.Builder
+
 	if i.readOnlyTestData {
 		slog.Info("Reading testing data", "enabled", i.readOnlyTestData)
 		data, err := os.ReadFile("/etc/test/incidents.yaml")
 		if err != nil {
 			return nil, err
 		}
-		return mcp.NewToolResultText(string(data)), nil
+		sb.Write(data)
+		//return mcp.NewToolResultText(string(data)), nil
 	}
 
 	promURL := os.Getenv("PROM_URL")
@@ -134,7 +138,8 @@ func (i *IncidentTool) IncidentsHandler(ctx context.Context, request mcp.CallToo
 		slog.Error("Failed to marshal the Incident data", "error", err)
 		return nil, err
 	}
-	return mcp.NewToolResultText(string(data)), nil
+	sb.Write(data)
+	return mcp.NewToolResultText(sb.String()), nil
 }
 
 // formatToRFC3339 formats a time to RFC3339 string, returns empty string for zero time
