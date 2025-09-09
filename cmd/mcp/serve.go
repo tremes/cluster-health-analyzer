@@ -20,7 +20,7 @@ func mcpCmd() *cobra.Command {
 				return
 			}
 
-			incidentsTool := mcp.CreateIncidentsTool(readTestData)
+			incidentsTool := mcp.NewIncidentsTool(readTestData)
 			mcpServer := mcp.NewMCPSSEServer("cluster-health-mcp-server", "0.0.1", ":8085")
 			mcpServer.RegisterTool(incidentsTool.Tool, incidentsTool.IncidentsHandler)
 

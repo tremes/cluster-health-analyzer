@@ -27,11 +27,12 @@ import (
 
 type IncidentTool struct {
 	mcp.Tool
-	consoleURL string
+	consoleURL   string
+	readTestData bool
 }
 
 // NewIncidentsTool creates a new MCP tool for the incidents
-func NewIncidentsTool() IncidentTool {
+func NewIncidentsTool(readTestData bool) IncidentTool {
 	readOnly := true
 	consoleURL, err := getConsoleURL()
 	if err != nil {
@@ -60,9 +61,6 @@ func NewIncidentsTool() IncidentTool {
 			},
 		},
 		consoleURL,
-	}
-	return IncidentsTool{
-		mcpTool,
 		readTestData,
 	}
 }
@@ -78,8 +76,8 @@ func (i *IncidentTool) IncidentsHandler(ctx context.Context, request mcp.CallToo
 	}
 	var sb strings.Builder
 
-	if i.readOnlyTestData {
-		slog.Info("Reading testing data", "enabled", i.readOnlyTestData)
+	if i.readTestData {
+		slog.Info("Reading testing data", "enabled", i.readTestData)
 		data, err := os.ReadFile("/etc/test/incidents.yaml")
 		if err != nil {
 			return nil, err
