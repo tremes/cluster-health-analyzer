@@ -1,0 +1,23 @@
+kind: Task
+apiVersion: mcpchecker/v1alpha2
+metadata:
+  name: "backend-reachability"
+  difficulty: easy
+  parallel: true
+  runs: 1
+  labels:
+    category: incidents
+    suite: cluster-health
+    toolType: smoke-test
+  description: |
+    Smoke test to verify the agent can reach the cluster-health MCP server
+    and get a valid response from the get_incidents tool.
+spec:
+  verify:
+    - llmJudge:
+        contains: "incident"
+        reason: "Verify the agent received a valid response from the tool"
+  prompt:
+    inline: |
+      Is the cluster health backend reachable? List the current firing incidents
+      and report whether the tool responded successfully.
